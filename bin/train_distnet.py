@@ -108,7 +108,7 @@ class KITTIDistDataModule(pl.LightningDataModule):
         return DataLoader(
             self.validation_data,
             batch_size=self.batch_size,
-            shuffle=True,
+            shuffle=False,
             collate_fn=self.collate_batch,
         )
 
