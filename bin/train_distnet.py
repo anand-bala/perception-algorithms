@@ -36,7 +36,7 @@ class KITTIDistDataModule(pl.LightningDataModule):
         self.batch_size = batch_size
 
     def prepare_data(self):
-        KITTI(self.data_dir, train=True, download=True)
+        KITTI(self.data_dir, train=True)
 
     def setup(self, stage: Optional[str] = None):
         # Assign train/val datasets for use in dataloaders
@@ -44,7 +44,6 @@ class KITTIDistDataModule(pl.LightningDataModule):
             dataset = KITTI(
                 self.data_dir,
                 train=True,
-                download=True,
                 transform=self.transform,
                 target_transform=self.target_transforms,
             )
