@@ -1,5 +1,4 @@
 from collections import OrderedDict
-from functools import reduce
 from typing import List, Tuple, Union
 
 import pytorch_lightning as pl
@@ -7,8 +6,7 @@ import torch
 from pytorch_lightning.metrics.functional import mean_squared_error
 from torch import nn
 from torch.nn import functional as F
-from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torch.utils.data import DataLoader, random_split
+from torch.optim import lr_scheduler
 from torchvision.models.resnet import resnet50
 from torchvision.models.vgg import vgg16
 from torchvision.ops.roi_pool import RoIPool
@@ -45,7 +43,8 @@ class BaseDistancePredictor(pl.LightningModule):
 
         self._feature_extractor = feature_extractor
 
-        self.learning_rate = 0.01
+        self.learning_rate = 0.001
+        self.beta = 0.5
 
         self.roi_pool = RoIPool(
             output_size=(7, 7),
@@ -121,8 +120,10 @@ class BaseDistancePredictor(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
-        scheduler = ReduceLROnPlateau(optimizer)
+        optimizer = torch.optim.Adam(
+            self.parameters(), lr=self.learning_rate, weight_decay=self.beta
+        )
+        scheduler = lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
         return {
             "optimizer": optimizer,
             "lr_scheduler": scheduler,
