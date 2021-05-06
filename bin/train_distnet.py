@@ -30,10 +30,11 @@ class KITTIDistDataModule(pl.LightningDataModule):
     )
     target_transforms = GetKITTIDistance()
 
-    def __init__(self, data_dir: Path, batch_size: int = 32):
+    def __init__(self, data_dir: Path, batch_size: int, num_workers: int):
         super().__init__()
         self.data_dir = data_dir
         self.batch_size = batch_size
+        self.num_workers = num_workers
 
     def prepare_data(self):
         KITTI(self.data_dir, train=True, download=True)
@@ -102,6 +103,7 @@ class KITTIDistDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=True,
             collate_fn=self.collate_batch,
+            num_workers=self.num_workers // 2,
         )
 
     def val_dataloader(self):
@@ -110,6 +112,7 @@ class KITTIDistDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             collate_fn=self.collate_batch,
+            num_workers=self.num_workers // 2,
         )
 
 
@@ -127,21 +130,26 @@ def cli_main():
     )
     parser.add_argument("--dataset-dir", type=lambda p: Path(p).expanduser().resolve())
     parser.add_argument("--batch-size", default=32, type=int)
+    parser.add_argument("--num-workers", default=1, type=int)
     parser.add_argument("--seed", default=1234, type=int)
     parser = pl.Trainer.add_argparse_args(parser)
     args = parser.parse_args()
+
+    if args.check_val_every_n_epoch is None or args.check_val_every_n_epoch == 1:
+        args.check_val_every_n_epoch = 2
 
     save_dir = Path(args.save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
     dataset_dir = Path(args.dataset_dir)
     batch_size = args.batch_size
+    num_workers = args.num_workers
     seed = args.seed
     pl.seed_everything(seed)
 
     # ------------
     # data
     # ------------
-    data = KITTIDistDataModule(dataset_dir, batch_size)
+    data = KITTIDistDataModule(dataset_dir, batch_size, num_workers)
     # ------------
     # model
     # ------------
@@ -154,7 +162,7 @@ def cli_main():
     trainer = pl.Trainer.from_argparse_args(
         args,
         callbacks=[
-            EarlyStopping(monitor="val_loss"),
+            EarlyStopping(monitor="val_loss", patience=10),
             ModelCheckpoint(dirpath=str(save_dir / "chk"), monitor="val_loss"),
         ],
         logger=logger,

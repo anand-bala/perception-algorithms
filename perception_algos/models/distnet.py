@@ -4,8 +4,10 @@ from typing import List, Tuple, Union
 
 import pytorch_lightning as pl
 import torch
+from pytorch_lightning.metrics.functional import mean_squared_error
 from torch import nn
 from torch.nn import functional as F
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader, random_split
 from torchvision.models.resnet import resnet50
 from torchvision.models.vgg import vgg16
@@ -42,6 +44,8 @@ class BaseDistancePredictor(pl.LightningModule):
             raise ValueError("feature_extractor must be one of 'resnet50' or 'vgg16'")
 
         self._feature_extractor = feature_extractor
+
+        self.learning_rate = 0.01
 
         self.roi_pool = RoIPool(
             output_size=(7, 7),
@@ -101,7 +105,9 @@ class BaseDistancePredictor(pl.LightningModule):
         d_hat = self(imgs, bboxes)
 
         loss = F.smooth_l1_loss(d_hat, d)
-        self.log("train_loss", loss)
+        self.log(
+            "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
+        )
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -110,8 +116,15 @@ class BaseDistancePredictor(pl.LightningModule):
         d_hat = self(imgs, bboxes)
 
         loss = F.smooth_l1_loss(d_hat, d)
-        self.log("val_loss", loss)
+        mse = mean_squared_error(d_hat, d)
+        self.log_dict({"val_loss": loss, "mse": mse}, logger=True)
         return loss
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=0.02)
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        scheduler = ReduceLROnPlateau(optimizer)
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": scheduler,
+            "monitor": "val_loss",
+        }
