@@ -134,9 +134,6 @@ def cli_main():
     parser = pl.Trainer.add_argparse_args(parser)
     args = parser.parse_args()
 
-    if args.check_val_every_n_epoch is None or args.check_val_every_n_epoch == 1:
-        args.check_val_every_n_epoch = 2
-
     save_dir = Path(args.save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
     dataset_dir = Path(args.dataset_dir)
