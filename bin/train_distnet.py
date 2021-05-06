@@ -159,7 +159,11 @@ def cli_main():
         args,
         callbacks=[
             EarlyStopping(monitor="val_loss", patience=10),
-            ModelCheckpoint(dirpath=str(save_dir / "chk"), monitor="val_loss"),
+            ModelCheckpoint(
+                dirpath=str(save_dir / "chk"),
+                monitor="val_loss",
+                filename="distnet-epoch{epoch:02d}-val_loss{val_loss:.2f}",
+            ),
         ],
         logger=logger,
     )
